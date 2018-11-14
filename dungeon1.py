@@ -1,10 +1,9 @@
 import random
 
-"""
-#########################################
-#.......................................#
-#.......................................#
-#########################################
+
+helptext = """
+dungeon game move the hero with the keys w a s d
+press space to create a new level
 """
 
 maxlines=22
@@ -13,6 +12,7 @@ d=[]
 
 # --- generate dungeon ---
 def generate_dungeon():
+    d = []
     for y in range(maxlines):
         line=[]
         for x in range(maxchars):
@@ -89,11 +89,16 @@ while True:
     #print(d[y][x])
     print(msg)
     msg = ""
-    c = input("Was nun >>>")
+    c = input("type command and ENTER, ? for help >>>")
     dx = 0
     dy = 0
     if c == "q":
         break
+    if c == "?":
+        msg = helptext
+    if c == " ":
+        d = generate_dungeon()
+        continue
     if c == "a":
         dx = -1
         #herox-=1
