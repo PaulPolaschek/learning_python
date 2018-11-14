@@ -1,4 +1,4 @@
 # learning_python
 my fist python examples
 
-![Screenshot from dungeon1](Bildschirmfoto zu 2018-11-14 19-09-24.png)
+![Screenshot from dungeon1](https://github.com/PaulPolaschek/learning_python/blob/master/Bildschirmfoto%20zu%202018-11-14%2019-09-24.png)
