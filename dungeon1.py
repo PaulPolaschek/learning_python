@@ -37,6 +37,18 @@ def generate_dungeon():
                     d[y][x]="#"
     return d    
 
+class Monster():
+	
+	def __init__(x,y):
+		self.x=x
+		self.y=y
+		self.hp=random.randint(10, 25)
+		self.waffe=random.choice(("schwert", "axt", "keule"))
+		self.gold=random.randint(5, 30)
+		self.armor=random.choice(("hemd", "helm", "brustpanzer"))
+		self.mood=random.choice(("agressive", "peacfull", "curious", "sleepy"))
+
+
 
 # --- generate hero
 
