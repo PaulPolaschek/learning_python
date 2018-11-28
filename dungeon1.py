@@ -6,7 +6,7 @@ dungeon game move the hero with the keys w a s d
 press space to create a new level
 """
 
-maxlines=18
+maxlines=18   # 
 maxchars=60
 d=[]
 
@@ -80,6 +80,7 @@ class Monster():
 
 
     def ai(self, hero):
+		"""monster läuft zu hero"""
         distx=hero.x-self.x
         disty=hero.y-self.y
         dist = (distx**2+disty**2)**0.5
@@ -117,6 +118,7 @@ class Player(Monster):
         self.maxdamage=15
         self.attack=0.9
         self.defense=0.5
+        self.hp = 200
     
 
 def fight(a, d):
@@ -152,23 +154,6 @@ def strike(a, d):
 # --- generate hero
 
 hero = Player(1,1,0)
-#herox = 4
-#heroy = 4
-hero.hp = 200
-
-# --- generate Monster
-#print("rudi")
-#rudi=Monster(0,0,0)
-#rudi.report()
-
-#print("detlef")
-#detlef=Monster(2,2,2)
-#detlef.report()
-
-#monster = "M"
-#mx= 1
-#my= 1
-#monsterhp = 10    
     
     
 # --- view dungeon ---
@@ -181,6 +166,7 @@ d = generate_dungeon()
 
 msg = ""
 while hero.hp > 0:
+	#grafik engine
     for y, line in enumerate(d):
         for x, char in enumerate(line):
             for mo in Game.zoo:
@@ -193,12 +179,13 @@ while hero.hp > 0:
         
     print(msg)
     msg = ""
+    #controller 
     c = input("type command and ENTER, ? for help >>>")
-    dx = 0
+    dx = 0    # gewünschte bewegungsrichtung
     dy = 0
-    if c == "q":
+    if c in ("q", "quit", "exit", "bye"):
         break
-    if c == "?":
+    if c == "?" or c == "help":
         msg += helptext
     #if c == " ":
     #    d = generate_dungeon()
@@ -222,25 +209,31 @@ while hero.hp > 0:
         msg+="\nAutsch eine Wand"
     # ---- will player ein monster angreifen ? ----
     for mo in Game.zoo:
+		# monster number 0 is hero
         if mo.number == 0:
             continue
+        # is hero running into a monster ?
         if hero.x + dx == mo.x and hero.y + dy == mo.y and mo.hp > 0:
             fight(hero, mo)
             dx, dy = 0, 0
             break
+    # move hero
     hero.x += dx
     hero.y += dy
     #-------bewegung für Monster ------
     for mo in Game.zoo:
         if mo.number == 0:
             continue # hero hat sich schon bewegt
+        if mo.hp <= 0:
+			continue # nur lebende monster
+        # künstliche inteligenz für monster aufrufen
         dx, dy = mo.ai(hero)
         # test ob monster in wall läuft
         if d[mo.y + dy][mo.x + dx] == "#":
             #msg+="\nMonster nr {} wollte in Wand laufen".format(mo.number)
             dx, dy = 0,0
         # test ob monster in player läuft (Angriff)
-        if mo.y + dy == hero.y and mo.x + dx == hero.x and mo.hp >0 and hero.hp > 0:
+        if mo.y + dy == hero.y and mo.x + dx == hero.x:
             dx, dy = 0, 0
             #msg+="\nMonster nr {} wollte player angreifen".format(mo.number)
             fight(mo, hero)
