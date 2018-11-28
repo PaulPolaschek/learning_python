@@ -68,12 +68,17 @@ class Monster():
         self.char = char
         self.sniffrange=random.randint(5,10)
         self.hp=random.randint(10, 25)
+        self.mindamage = 2
+        self.maxdamage = 5
+        self.attack = 0.75
+        self.defense = 0.2
         self.waffe=random.choice(("schwert", "axt", "keule"))
         self.gold=random.randint(5, 30)
         self.armor=random.choice(("hemd", "helm", "brustpanzer"))
         self.mood=random.choice(("agressive", "peacfull", "curious", "sleepy"))
-        self.report()
-        
+        #self.report()
+
+
     def ai(self, hero):
         distx=hero.x-self.x
         disty=hero.y-self.y
@@ -104,11 +109,49 @@ class Monster():
         print("ich habe {}".format(self.armor))
         print("ich bin {}".format(self.mood))
 
+class Player(Monster):
+    
+    def __init__(self, x, y, z):
+        Monster.__init__(self, x,y,z, char="@")
+        self.mindamage=10
+        self.maxdamage=15
+        self.attack=0.9
+        self.defense=0.5
+    
 
+def fight(a, d):
+    print("Strike!")
+    strike(a, d)
+    if d.hp > 0:
+        print("Counterstrike!")
+        strike(d, a)
+        
+def strike(a, d):
+    namea = a.__class__.__name__
+    named = d.__class__.__name__
+    # attack succesfull?
+    print("{} attacks {}....".format(namea, named))
+    w1=random.random()
+    if w1 > a.attack:
+        print("attack fails nothing happens")
+        return
+    print("attack sucessful...")
+    w2=random.random()
+    if w2 < d.defense:
+        print("...but defense successful nothing happens")
+        return
+    print("and defense fails")
+    dmg = random.randint(a.mindamage, a.maxdamage)
+    print("{} hits {} for {} damage. ({} hp left)".format(namea, named, dmg, d.hp-dmg))
+    d.hp -= dmg
+    if d.hp <= 0:
+        print("victory for {}".format(namea))
+    
+        
 
 # --- generate hero
 
-hero = Monster(1,1,0,"@")
+hero = Player(1,1,0)
 #herox = 4
 #heroy = 4
 hero.hp = 200
@@ -137,38 +180,17 @@ d = generate_dungeon()
 #d0 = d[:]
 
 msg = ""
-while True:
-    
-    #d[my][mx]="."
-    #dx=random.choice((-1,0,0,0,1))
-    #dy=random.choice((-1,0,0,0,1))
-    #if d[my+dy][mx+dx] == "#":
-    #    dx=0
-    #    dy=0
-    #    msg += "Monster autsch"
-    #mx += dx
-    #my += dy
-    #d[my][mx]="M"
-
+while hero.hp > 0:
     for y, line in enumerate(d):
         for x, char in enumerate(line):
-            #if x==herox and y==heroy:
-            #    print(hero, end="")
-            #elif x==mx and y==my:
-            #    print(monster, end="")
-            #else:
-            #    print(char, end="")
             for mo in Game.zoo:
-                if mo.x == x and mo.y == y:
+                if mo.x == x and mo.y == y and mo.hp > 0:
                     print(mo.char, end="")
                     break
             else:
                 print(char, end="")
         print()
         
-    #y=int(input("y  >>>"))
-    #x=int(input("x  >>>"))
-    #print(d[y][x])
     print(msg)
     msg = ""
     c = input("type command and ENTER, ? for help >>>")
@@ -198,6 +220,14 @@ while True:
         dx = 0
         dy = 0
         msg+="\nAutsch eine Wand"
+    # ---- will player ein monster angreifen ? ----
+    for mo in Game.zoo:
+        if mo.number == 0:
+            continue
+        if hero.x + dx == mo.x and hero.y + dy == mo.y and mo.hp > 0:
+            fight(hero, mo)
+            dx, dy = 0, 0
+            break
     hero.x += dx
     hero.y += dy
     #-------bewegung für Monster ------
@@ -210,9 +240,10 @@ while True:
             #msg+="\nMonster nr {} wollte in Wand laufen".format(mo.number)
             dx, dy = 0,0
         # test ob monster in player läuft (Angriff)
-        if mo.y + dy == hero.y and mo.x + dx == hero.x:
+        if mo.y + dy == hero.y and mo.x + dx == hero.x and mo.hp >0 and hero.hp > 0:
             dx, dy = 0, 0
-            msg+="\nMonster nr {} wollte player angreifen".format(mo.number)
+            #msg+="\nMonster nr {} wollte player angreifen".format(mo.number)
+            fight(mo, hero)
         # test ob monster in anderes monster läuft
         for mo2 in Game.zoo:
             if mo2.number == mo.number:
