@@ -414,6 +414,8 @@ class Dreieck(VectorSprite):
     def _overwrite_parameters(self):
         self.rotdelta = 1
         self.rot = 255
+        self.mass = 400
+        self.radius = 25
         
     
     def create_image(self):
@@ -442,8 +444,11 @@ class Dreieck(VectorSprite):
 class EvilMonster(VectorSprite):
     
     def _overwrite_parameters(self):
-        self.rotdelta = 1
-        self.rot = 255
+        #self.rotdelta = 1
+        self.rot = random.randint(5,250)
+        self.rotdelta = random.randint(1,5) * random.choice((-1,1))
+        self.radius = 25
+        self.mass = random.randint(50, 150)
         
     
     def create_image(self):
@@ -544,41 +549,43 @@ class Rocket(VectorSprite):
         self.create_image()
 
     def _overwrite_parameters(self):
-        self._layer = 1    
+        self._layer = 1   
+        self.kill_on_edge=True
+        self.radius = 3
+        self.mass = 20
 
     def create_image(self):
-        self.angle = 90
-        self.image = pygame.Surface((20,10))
-        pygame.draw.polygon(self.image, self.color, [(0,0),(5,0), (20,5), (5,10), (0,10), (5,5)])
+        self.image = pygame.Surface((10,5))
+        pygame.draw.polygon(self.image, (255, 255, 0),
+            [(0,0),(7,0),(10,2),(10,3),(7,4),(0,4)])
         self.image.set_colorkey((0,0,0))
         self.image.convert_alpha()
         self.image0 = self.image.copy()
         self.rect = self.image.get_rect()
-        self.set_angle(self.angle)
-
-    def update(self, seconds):
+        
+  #  def update(self, seconds):
         # --- speed limit ---
-        if self.move.length() != self.speed:
-            if self.move.length() < 0:
-                self.move = self.move.normalize() * self.speed
-            else:
-                pass
-        if self.move.length() > 0:
-            self.set_angle(-self.move.angle_to(pygame.math.Vector2(-1,0)))
-            self.move = self.move.normalize() * self.speed
-            # --- Smoke ---
-            if random.random() < 0.2 and self.age > 0.1:
-                Smoke(pos=pygame.math.Vector2(self.pos.x, self.pos.y), 
-                   gravity=pygame.math.Vector2(0,4), max_age = 4)
-        self.oldage = self.age
-        VectorSprite.update(self, seconds)
-        # new rockets are stored offscreen 500 pixel below PygView.height
-        if self.age > self.readyToLaunchTime and self.oldage < self.readyToLaunchTime:
-            self.pos.y -= 500
+   #     if self.move.length() != self.speed:
+     #       if self.move.length() < 0:
+    #            self.move = self.move.normalize() * self.speed
+    #        else:
+    #            pass
+    #    if self.move.length() > 0:
+    #        self.set_angle(-self.move.angle_to(pygame.math.Vector2(-1,0)))
+    #        self.move = self.move.normalize() * self.speed
+    #        # --- Smoke ---
+    #        if random.random() < 0.2 and self.age > 0.1:
+    #            Smoke(pos=pygame.math.Vector2(self.pos.x, self.pos.y), 
+    #               gravity=pygame.math.Vector2(0,4), max_age = 4)
+    #    self.oldage = self.age
+    #    VectorSprite.update(self, seconds)
+    #    # new rockets are stored offscreen 500 pixel below PygView.height
+    #    if self.age > self.readyToLaunchTime and self.oldage < self.readyToLaunchTime:
+    #        self.pos.y -= 500
 
-    def kill(self):
-        Explosion(pos=pygame.math.Vector2(self.pos.x, self.pos.y),max_age=2.1, color=(200,255,255), damage = self.damage)
-        VectorSprite.kill(self)    
+#    def kill(self):
+#        Explosion(pos=pygame.math.Vector2(self.pos.x, self.pos.y),max_age=2.1, color=(200,255,255), damage = self.damage)
+#        VectorSprite.kill(self)    
 
 
 
@@ -586,7 +593,7 @@ class PygView(object):
     width = 0
     height = 0
     def movement_indicator(self,vehicle,pygamepos, color=(0,200,0)):
-		#----heading indicator
+        #----heading indicator
         pygame.draw.circle(self.screen,color,pygamepos,100,1)
         h=pygame.math.Vector2(100,0)
         h.rotate_ip(-vehicle.angle)
@@ -663,13 +670,17 @@ class PygView(object):
         self.tracergroup = pygame.sprite.Group()
         self.mousegroup = pygame.sprite.Group()
         self.explosiongroup = pygame.sprite.Group()
+        self.monstergroup = pygame.sprite.Group()
+        self.playergroup = pygame.sprite.Group()
+        self.rocketgroup = pygame.sprite.Group()
 
         Mouse.groups = self.allgroup, self.mousegroup
-        EvilMonster.groups = self.allgroup
+        EvilMonster.groups = self.allgroup, self.monstergroup
         VectorSprite.groups = self.allgroup
         Flytext.groups = self.allgroup
         Explosion.groups= self.allgroup, self.explosiongroup
-        
+        Dreieck.groups = self.allgroup, self.playergroup
+        Rocket.groups = self.allgroup, self.rocketgroup
         
 
    
@@ -716,6 +727,15 @@ class PygView(object):
                 elif event.type == pygame.KEYDOWN:
                     if event.key == pygame.K_ESCAPE:
                         running = False
+                    if event.key == pygame.K_TAB:
+                        v = pygame.math.Vector2(100,0)
+                        v.rotate_ip(self.eck.angle)
+                        v += self.eck.move
+                        p = pygame.math.Vector2(self.eck.pos.x, self.eck.pos.y)
+                        a = self.eck.angle
+                        t = pygame.math.Vector2(25, 0)
+                        t.rotate_ip(self.eck.angle)
+                        Rocket(pos=p+t, move=v, angle=a)
                     # if event.key == pygame.K_d :
                     #    self.eck.set_angle(0)
                     #    Flytext(PygView.width/2, PygView.height/2,  "set_angle: 0°", color=(255,0,0), duration = 3, fontsize=20)
@@ -848,15 +868,30 @@ class PygView(object):
                 self.clock.get_fps() ), x=10, y=10)
             self.allgroup.update(seconds)
 
-            # --------- collision detection between target and Explosion -----
-            #for e in self.explosiongroup:
-            #    crashgroup = pygame.sprite.spritecollide(e, self.targetgroup,
-            #                 False, pygame.sprite.collide_circle)
-            #    for t in crashgroup:
-            #        t.hitpoints -= e.damage
-            #        if random.random() < 0.5:
-            #            Fire(pos = t.pos, max_age=3, bossnumber=t.number)
+            # --------- collision detection between player and monster -----
+            for p in self.playergroup:
+                crashgroup = pygame.sprite.spritecollide(p, self.monstergroup,
+                             False, pygame.sprite.collide_mask)
+                for m in crashgroup:
+                    elastic_collision(p, m)
+            
+            # --------- collision detection between monster and other monsters -----                    
+            for m in self.monstergroup:
+                crashgroup = pygame.sprite.spritecollide(m, self.monstergroup,
+                             False, pygame.sprite.collide_circle)
+                for m2 in crashgroup:
+                    if m.number != m2.number:
+                        elastic_collision(m, m2)
 
+            # --------- collision detection between monster and rockets -----                    
+            for m in self.monstergroup:
+                crashgroup = pygame.sprite.spritecollide(m, self.rocketgroup,
+                             False, pygame.sprite.collide_circle)
+                for r in crashgroup:
+                    elastic_collision(m, r)
+                    m.hitpoints -= r.damage
+                    r.kill()
+            
             
             # ----------- clear, draw , update, flip -----------------
             self.allgroup.draw(self.screen)
