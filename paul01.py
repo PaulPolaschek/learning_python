@@ -585,6 +585,24 @@ class Rocket(VectorSprite):
 class PygView(object):
     width = 0
     height = 0
+    def movement_indicator(self,vehicle,pygamepos, color=(0,200,0)):
+		#----heading indicator
+        pygame.draw.circle(self.screen,color,pygamepos,100,1)
+        h=pygame.math.Vector2(100,0)
+        h.rotate_ip(-vehicle.angle)
+        target=pygamepos+h
+        target=(int(target.x),int(target.y))
+        pygame.draw.circle(self.screen,(0,128,0),target,3)           
+       
+        if vehicle.move.x ==0 and vehicle.move.y==0:
+            return
+        length=int(vehicle.move.length()/10)
+        length=min(10,length)
+        v=pygame.math.Vector2(100,0)
+        v.rotate_ip(vehicle.move.angle_to(v))
+        target=pygamepos+v
+        pygame.draw.line(self.screen, color, pygamepos,target,length)
+
 
     def __init__(self, width=640, height=400, fps=30):
         """Initialize pygame, window, background, font,...
@@ -749,10 +767,10 @@ class PygView(object):
             self.screen.blit(self.background, (0, 0))
             
             # ------ move indicator for self.eck -----
-            pygame.draw.circle(self.screen, (0,255,0), (100,100), 100,1)
-            glitter = (0, random.randint(128, 255), 0)
-            pygame.draw.line(self.screen, glitter, (100,100), 
-                            (100 + self.eck.move.x, 100 - self.eck.move.y))
+            #pygame.draw.circle(self.screen, (0,255,0), (100,100), 100,1)
+            #glitter = (0, random.randint(128, 255), 0)
+            #pygame.draw.line(self.screen, glitter, (100,100), 
+            #                (100 + self.eck.move.x, 100 - self.eck.move.y))
             
             
             # --- line from eck to mouse ---
@@ -842,6 +860,10 @@ class PygView(object):
             
             # ----------- clear, draw , update, flip -----------------
             self.allgroup.draw(self.screen)
+            
+            self.movement_indicator(self.eck,(105,105))
+            #self.movement_indicator(self.player2,(1320,105))
+            
 
             
             # --- Martins verbesserter Mousetail -----
