@@ -228,9 +228,10 @@ class VectorSprite(pygame.sprite.Sprite):
         self._default_parameters(**kwargs)
         self._overwrite_parameters()
         pygame.sprite.Sprite.__init__(self, self.groups) #call parent class. NEVER FORGET !
-        self.number = VectorSprite.number # unique number for each sprite
+        self.number = VectorSprite.number # unique number for each sprit
         VectorSprite.number += 1
         VectorSprite.numbers[self.number] = self
+        #print(self.number, VectorSprite.numbers)
         self.create_image()
         #self.rect = self.image.get_rect()
         
@@ -360,6 +361,7 @@ class VectorSprite(pygame.sprite.Sprite):
                 if self.bossnumber not in VectorSprite.numbers:
                     self.kill()
             if self.sticky_with_boss:
+                #print("i am sticky", self.number, self.bossnumber)
                 boss = VectorSprite.numbers[self.bossnumber]
                 #self.pos = v.Vec2d(boss.pos.x, boss.pos.y)
                 self.pos = pygame.math.Vector2(boss.pos.x, boss.pos.y)
@@ -409,6 +411,65 @@ class VectorSprite(pygame.sprite.Sprite):
             elif self.warp_on_edge:
                 self.pos.y = 0
 
+
+class Spark(VectorSprite):
+    
+    def create_image(self):
+        self.image = pygame.Surface((10,3))
+        pygame.draw.line(self.image, self.color, (1,1),(random.randint(5,10),1), random.randint(1,3))
+        self.image.set_colorkey((0,0,0))
+        self.image.convert_alpha()
+        self.rect = self.image.get_rect()
+        self.image0 = self.image.copy()
+    
+
+class Explosion():
+    
+    def __init__(self, pos, red = 100, blue = 0, green = 0, dred = 5, dblue = 5,
+                 dgreen = 5, minsparks=1, maxsparks=200, a1 = 0, a2 =360, max_age = 1):
+        
+        for _ in range(minsparks,maxsparks):
+            a = random.randint(a1,a2)
+            v = pygame.math.Vector2(random.randint(50,250),0)
+            v.rotate_ip(a)
+            self.pos = pygame.math.Vector2(pos.x, pos.y)
+            self.max_age = max_age
+            c= [ red + random.randint(-dred, dred), 
+                      green + random.randint(-dgreen, dgreen),
+                      blue + random.randint(-dblue, dblue)]
+            for farbe in [0 ,1, 2]:
+                if c[farbe]<0:
+                    c[farbe] = 0
+                if c[farbe] > 255:
+                    c[farbe] = 255
+            Spark(pos = self.pos, max_age = self.max_age, move = v, angle = a, color = c)
+            
+
+class Cannon(VectorSprite):
+    
+    def _overwrite_parameters(self):
+        self.sticky_with_boss = True
+        self.kill_with_boss = True
+        #print("cannon:",self.bossnumber)
+    
+    def create_image(self):
+        self.image = pygame.Surface((50,50))
+        pygame.draw.line(self.image, (100, 0, 0), (25,25), (50,25),5)
+        self.image.set_colorkey((0,0,0))
+        self.image.convert_alpha()
+        self.rect = self.image.get_rect()
+        self.image0 = self.image.copy()
+        
+    def update(self, seconds):
+        VectorSprite.update(self, seconds)
+        rightvector = pygame.math.Vector2(1,0)
+        mousevector = pygame.math.Vector2(pygame.mouse.get_pos()[0],
+                                       -pygame.mouse.get_pos()[1])
+        diffvector = mousevector - self.pos                               
+        angle = rightvector.angle_to(diffvector)
+        self.set_angle(angle)
+        
+
 class Dreieck(VectorSprite):
     
     def _overwrite_parameters(self):
@@ -416,12 +477,16 @@ class Dreieck(VectorSprite):
         self.rot = 255
         self.mass = 400
         self.radius = 25
+        #print("i am the dreieck, ", self.number)
+        #print("dreieck.number:", self.number)
+        Cannon(bossnumber = self.number)
+        #print(sebossnumber)
         
     
     def create_image(self):
         self.image = pygame.Surface((50,50))
         pygame.draw.polygon(self.image, (255, 255, 0), ((0,0),(50,25),(0,50),(25,25)))
-        pygame.draw.line(self.image, (self.rot, 0, 0), (25,25), (50,25),5)
+        #pygame.draw.line(self.image, (self.rot, 0, 0), (25,25), (50,25),5)
         self.image.set_colorkey((0,0,0))
         self.image.convert_alpha()
         self.rect = self.image.get_rect()
@@ -441,6 +506,10 @@ class Dreieck(VectorSprite):
         self.rect.center = oldcenter
         self.set_angle(self.angle)
 
+        
+        
+
+
 class EvilMonster(VectorSprite):
     
     def _overwrite_parameters(self):
@@ -449,6 +518,7 @@ class EvilMonster(VectorSprite):
         self.rotdelta = random.randint(1,5) * random.choice((-1,1))
         self.radius = 25
         self.mass = random.randint(50, 150)
+        self.hitpoints = 100
         
     
     def create_image(self):
@@ -480,6 +550,10 @@ class EvilMonster(VectorSprite):
         self.create_image() 
         self.rect.center = oldcenter
         self.set_angle(self.angle)
+        
+    def kill(self):
+        Explosion(pos = self.pos, red = 255, dred = 20, green = 255, dgreen = 20, blue = 0, a1 = 0, a2 = 360)
+        VectorSprite.kill(self)
        
 
 class Smoke(VectorSprite):
@@ -504,55 +578,25 @@ class Smoke(VectorSprite):
         self.color=(c,c,c)
 
 
-class Explosion(VectorSprite):
-
-    def _overwrite_parameters(self):
-        self._layer = 2
-
-    def create_image(self):
-        self.image=pygame.Surface((self.radius*2, self.radius*2))
-        pygame.draw.circle(self.image, (197, 37,  37),(self.radius, self.radius),  self.radius, 0)
-        r, g, b = self.color
-        for rad in range(5,66, 5):
-            if self.radius > rad:
-                if r != 0 and r != 255:
-                   r1 = (random.randint(rad-10,rad) + r) % 255
-                else:
-                    r1 = r
-                if g != 0 and g != 255:
-                    g1 = (random.randint(rad-10,rad) + g) % 255
-                else:
-                    g1 = g
-                if b != 0 and b != 255:
-                    b1 = (random.randint(rad-10,rad) + b) % 255
-                else:
-                    b1 = b
-                pygame.draw.circle(self.image, (r1,g1,b1), (self.radius, self.radius), self.radius-rad, 0)
-        self.image.set_colorkey((0,0,0))
-        self.rect= self.image.get_rect()
-
-    def update(self,seconds):
-         VectorSprite.update(self, seconds)
-         self.create_image()
-         self.rect=self.image.get_rect()
-         self.rect.center=(self.pos.x, self.pos.y)
-         self.radius+=1
 
 class Rocket(VectorSprite):
 
-    def __init__(self, **kwargs):
-        self.readyToLaunchTime = 0
-        VectorSprite.__init__(self, **kwargs)
+    #def __init__(self, **kwargs):
+    #    self.readyToLaunchTime = 0
+    #    VectorSprite.__init__(self, **kwargs)
         
-        self.damage = 3
-        self.color = (255,156,0)
-        self.create_image()
+        
+        #self.create_image()
 
     def _overwrite_parameters(self):
         self._layer = 1   
         self.kill_on_edge=True
         self.radius = 3
         self.mass = 20
+        self.damage = 10
+        self.color = (255,156,0)
+
+
 
     def create_image(self):
         self.image = pygame.Surface((10,5))
@@ -681,18 +725,21 @@ class PygView(object):
         Explosion.groups= self.allgroup, self.explosiongroup
         Dreieck.groups = self.allgroup, self.playergroup
         Rocket.groups = self.allgroup, self.rocketgroup
+        Spark.groups = self.allgroup
         
 
    
         # ------ player1,2,3: mouse, keyboard, joystick ---
+        self.eck =  Dreieck(warp_on_edge=True, pos=pygame.math.Vector2(PygView.width/2,-PygView.height/2))
+
+        
         self.mouse1 = Mouse(control="mouse", color=(255,0,0))
         self.mouse2 = Mouse(control='keyboard1', color=(255,255,0))
         self.mouse3 = Mouse(control="keyboard2", color=(255,0,255))
         self.mouse4 = Mouse(control="joystick1", color=(255,128,255))
         self.mouse5 = Mouse(control="joystick2", color=(255,255,255))
 
-        self.eck =  Dreieck(warp_on_edge=True, pos=pygame.math.Vector2(PygView.width/2,-PygView.height/2))
-
+        
         #self.evil1 = EvilMonster(bounce_on_edge=True)
         for x in range(20):
             EvilMonster(bounce_on_edge=True)
@@ -736,6 +783,10 @@ class PygView(object):
                         t = pygame.math.Vector2(25, 0)
                         t.rotate_ip(self.eck.angle)
                         Rocket(pos=p+t, move=v, angle=a)
+                    if event.key == pygame.K_e:
+                        ep = pygame.math.Vector2(self.eck.pos.x, self.eck.pos.y)
+                        Explosion(pos = ep, red = 100, dred = 20, minsparks = 200, maxsparks = 300)
+                        #print("rocketangle:",a)
                     # if event.key == pygame.K_d :
                     #    self.eck.set_angle(0)
                     #    Flytext(PygView.width/2, PygView.height/2,  "set_angle: 0°", color=(255,0,0), duration = 3, fontsize=20)
@@ -890,6 +941,7 @@ class PygView(object):
                 for r in crashgroup:
                     elastic_collision(m, r)
                     m.hitpoints -= r.damage
+                    Explosion(pos = r.pos, red = 200, dred = 20, minsparks = 100, maxsparks = 200, a1 = r.angle-180-40, a2 = r.angle-180+40, max_age = 0.25)
                     r.kill()
             
             
