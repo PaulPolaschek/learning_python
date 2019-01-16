@@ -429,7 +429,7 @@ class Explosion():
                  dgreen = 5, minsparks=1, maxsparks=200, a1 = 0, a2 =360, max_age = 1):
         
         for _ in range(minsparks,maxsparks):
-            a = random.randint(a1,a2)
+            a = random.randint(int(a1),int(a2))
             v = pygame.math.Vector2(random.randint(50,250),0)
             v.rotate_ip(a)
             self.pos = pygame.math.Vector2(pos.x, pos.y)
@@ -451,6 +451,10 @@ class Cannon(VectorSprite):
         self.sticky_with_boss = True
         self.kill_with_boss = True
         #print("cannon:",self.bossnumber)
+        self._layer = 9
+        #print("ich bin kanone. meine bossnumber:", self.bossnumber)
+        #print("meine eigene nummer", self.number)
+        #print("meine boss position", VectorSprite.numbers[self.bossnumber].pos)
     
     def create_image(self):
         self.image = pygame.Surface((50,50))
@@ -470,17 +474,37 @@ class Cannon(VectorSprite):
         self.set_angle(angle)
         
 
-class Dreieck(VectorSprite):
+class Player(VectorSprite):
     
     def _overwrite_parameters(self):
         self.rotdelta = 1
         self.rot = 255
         self.mass = 400
         self.radius = 25
-        #print("i am the dreieck, ", self.number)
-        #print("dreieck.number:", self.number)
-        Cannon(bossnumber = self.number)
+        #print("i am the Player, ", self.number)
+        #print("Player.number:", self.number)
+        #Cannon(bossnumber = self.number, sticky_with_boss = True)
         #print(sebossnumber)
+       
+    def fire(self, angle):
+        v = pygame.math.Vector2(100,0)
+        v.rotate_ip(angle)
+        v += self.move
+        p = pygame.math.Vector2(self.pos.x, self.pos.y)
+        a = angle
+        t = pygame.math.Vector2(25, 0)
+        t.rotate_ip(angle)
+        Rocket(pos=p+t, move=v, angle=a)
+            
+       
+    def move_forward(self):
+        v = pygame.math.Vector2(1,0)
+        v.rotate_ip(self.angle)
+        self.move += v
+        Flame(bossnumber=self.number, pos = self.pos)
+        if random.random() < 0.2:
+            Smoke(pos = self.pos, gravity = None, max_age=3.0)
+            
         
     
     def create_image(self):
@@ -508,7 +532,20 @@ class Dreieck(VectorSprite):
 
         
         
-
+class EvilLaser(VectorSprite):
+    
+    def _overwrite_parameters(self):
+        self.kill_on_edge = True
+    
+    def create_image(self):
+        self.image = pygame.Surface((30,5))
+        self.farbe = (random.randint(30,50),random.randint(200,255),random.randint(0,20))
+        self.image.fill(self.farbe)
+        self.image.set_colorkey((0,0,0))
+        self.image.convert_alpha()
+        self.image0 = self.image.copy()
+        self.rect = self.image.get_rect()
+        
 
 class EvilMonster(VectorSprite):
     
@@ -550,18 +587,60 @@ class EvilMonster(VectorSprite):
         self.create_image() 
         self.rect.center = oldcenter
         self.set_angle(self.angle)
+        if random.random() < 0.002:
+            self.fire()
+            
+    def fire(self):
+        # wir wissen, player1 hat number 0
+        p1 = VectorSprite.numbers[0]
+        rightvector = pygame.math.Vector2(1,0)
+        diffvector = p1.pos - self.pos
+        diffvector.normalize_ip()
+        a = rightvector.angle_to(diffvector)
+        p = pygame.math.Vector2(self.pos.x, self.pos.y)
+        EvilLaser(pos = p, angle=a, move=diffvector*50, max_age = 5)
         
     def kill(self):
         Explosion(pos = self.pos, red = 255, dred = 20, green = 255, dgreen = 20, blue = 0, a1 = 0, a2 = 360)
         VectorSprite.kill(self)
        
+class Flame(VectorSprite):
+    
+    def _overwrite_parameters(self):
+        self.sticky_with_boss = True
+        self.max_age = 0.01
+        
+    
+    def create_image(self):
+        self.image = pygame.Surface((60,10))
+        farbe1 = (random.randint(200,255),random.randint(0,50),random.randint(0,50))
+        farbe2 = (random.randint(200,255),random.randint(10,66),random.randint(0,50))
+        farbe3 = (random.randint(200,255),random.randint(100,166),random.randint(0,50)) 
+        # größte Raute
+        pygame.draw.polygon(self.image, farbe1, [ (30,5), (35, 0), (60,5), (35,10) ])
+        # mittlere Raute
+        pygame.draw.polygon(self.image, farbe2, [ (32,5), (36, 2), (55,5), (36,8) ])
+        # kleinste Raute
+        pygame.draw.polygon(self.image, farbe3, [ (35,5), (38, 3), (50,5), (38,7) ])
+        self.image.set_colorkey((0,0,0))
+        self.image.convert_alpha()
+        self.image0 = self.image.copy()
+        self.rect = self.image.get_rect()
+        
+    def update(self, seconds):
+        VectorSprite.update(self, seconds)
+        self.set_angle(VectorSprite.numbers[self.bossnumber].angle-180)
 
 class Smoke(VectorSprite):
+    
+    def _overwrite_parameters(self):
+        self.pos = pygame.math.Vector2(self.pos.x, self.pos.y)
+        #print("hallo ich bin ein smoke", self.pos)
 
     def create_image(self):
         self.image = pygame.Surface((50,50))
         pygame.draw.circle(self.image, self.color, (25,25),
-                           int(self.age*3))
+                           3+int(self.age*3))
         self.image.set_colorkey((0,0,0))
         self.image.convert_alpha()
         self.rect = self.image.get_rect()
@@ -572,7 +651,7 @@ class Smoke(VectorSprite):
             self.move += self.gravity * seconds
         self.create_image()
         self.rect=self.image.get_rect()
-        self.rect.center=(self.pos.x, self.pos.y)
+        self.rect.center=(self.pos.x, -self.pos.y)
         c = int(self.age * 100)
         c = min(255,c)
         self.color=(c,c,c)
@@ -677,10 +756,6 @@ class PygView(object):
             random.shuffle(self.backgroundfilenames) # remix sort order
         except:
             print("no folder 'data' or no jpg files in it")
-        #if len(self.backgroundfilenames) == 0:
-        #    print("Error: no .jpg files found")
-        #    pygame.quit
-        #    sys.exit()
         PygView.bombchance = 0.015
         PygView.rocketchance = 0.001
         PygView.wave = 0
@@ -711,27 +786,28 @@ class PygView(object):
     def paint(self):
         """painting on the surface and create sprites"""
         self.allgroup =  pygame.sprite.LayeredUpdates() # for drawing
-        self.tracergroup = pygame.sprite.Group()
         self.mousegroup = pygame.sprite.Group()
-        self.explosiongroup = pygame.sprite.Group()
         self.monstergroup = pygame.sprite.Group()
         self.playergroup = pygame.sprite.Group()
         self.rocketgroup = pygame.sprite.Group()
+        self.lasergroup = pygame.sprite.Group()
 
         Mouse.groups = self.allgroup, self.mousegroup
         EvilMonster.groups = self.allgroup, self.monstergroup
         VectorSprite.groups = self.allgroup
         Flytext.groups = self.allgroup
-        Explosion.groups= self.allgroup, self.explosiongroup
-        Dreieck.groups = self.allgroup, self.playergroup
+        Player.groups = self.allgroup, self.playergroup
         Rocket.groups = self.allgroup, self.rocketgroup
         Spark.groups = self.allgroup
+        Smoke.groups = self.allgroup
+        Flame.groups = self.allgroup
+        EvilLaser.groups = self.allgroup, self.lasergroup
         
 
    
         # ------ player1,2,3: mouse, keyboard, joystick ---
-        self.eck =  Dreieck(warp_on_edge=True, pos=pygame.math.Vector2(PygView.width/2,-PygView.height/2))
-
+        self.player1 =  Player(warp_on_edge=True, pos=pygame.math.Vector2(PygView.width/2,-PygView.height/2))
+        self.cannon1 = Cannon(bossnumber=self.player1.number)
         
         self.mouse1 = Mouse(control="mouse", color=(255,0,0))
         self.mouse2 = Mouse(control='keyboard1', color=(255,255,0))
@@ -740,7 +816,6 @@ class PygView(object):
         self.mouse5 = Mouse(control="joystick2", color=(255,255,255))
 
         
-        #self.evil1 = EvilMonster(bounce_on_edge=True)
         for x in range(20):
             EvilMonster(bounce_on_edge=True)
    
@@ -775,93 +850,31 @@ class PygView(object):
                     if event.key == pygame.K_ESCAPE:
                         running = False
                     if event.key == pygame.K_TAB:
-                        v = pygame.math.Vector2(100,0)
-                        v.rotate_ip(self.eck.angle)
-                        v += self.eck.move
-                        p = pygame.math.Vector2(self.eck.pos.x, self.eck.pos.y)
-                        a = self.eck.angle
-                        t = pygame.math.Vector2(25, 0)
-                        t.rotate_ip(self.eck.angle)
-                        Rocket(pos=p+t, move=v, angle=a)
+                        self.player1.fire(self.cannon1.angle)
                     if event.key == pygame.K_e:
-                        ep = pygame.math.Vector2(self.eck.pos.x, self.eck.pos.y)
+                        ep = pygame.math.Vector2(self.player1.pos.x, self.player1.pos.y)
                         Explosion(pos = ep, red = 100, dred = 20, minsparks = 200, maxsparks = 300)
-                        #print("rocketangle:",a)
-                    # if event.key == pygame.K_d :
-                    #    self.eck.set_angle(0)
-                    #    Flytext(PygView.width/2, PygView.height/2,  "set_angle: 0°", color=(255,0,0), duration = 3, fontsize=20)
-                    # if event.key == pygame.K_e:
-                    #     self.eck.set_angle(45)
-                    #     Flytext(PygView.width/2, PygView.height/2,  "set_angle: 45°", color=(255,0,0), duration = 3, fontsize=20)
-                    # if event.key == pygame.K_w:
-                    #    self.eck.set_angle(90)
-                    #    Flytext(PygView.width/2, PygView.height/2,  "set_angle: 90°", color=(255,0,0), duration = 3, fontsize=20)
-                    # if event.key == pygame.K_q:
-                    #    self.eck.set_angle(135)
-                    #     Flytext(PygView.width/2, PygView.height/2,  "set_angle: 135°", color=(255,0,0), duration = 3, fontsize=20)
-                    # if event.key == pygame.K_a:
-                    #    self.eck.set_angle(180)
-                    #    Flytext(PygView.width/2, PygView.height/2,  "set_angle: 180°", color=(255,0,0), duration = 3, fontsize=20)
-                    # if event.key == pygame.K_y:
-                    #     self.eck.set_angle(225)
-                    #     Flytext(PygView.width/2, PygView.height/2,  "set_angle: 225°", color=(255,0,0), duration = 3, fontsize=20)
-                    # if event.key == pygame.K_x:
-                    #    self.eck.set_angle(270)
-                    #    Flytext(PygView.width/2, PygView.height/2,  "set_angle: 270°", color=(255,0,0), duration = 3, fontsize=20)
-                    # if event.key == pygame.K_c:
-                    #     self.eck.set_angle(315)
-                    #     Flytext(PygView.width/2, PygView.height/2,  "set_angle: 315°", color=(255,0,0), duration = 3, fontsize=20)
-                   
-                    #if event.key == pygame.K_s:
-                    #    mausvector = pygame.math.Vector2(self.mouse1.x, -self.mouse1.y)
-                    #    eckvector = pygame.math.Vector2(self.eck.pos.x, self.eck.pos.y)
-                    #    diffvector = mausvector - eckvector
-                    #    rechtsvector = pygame.math.Vector2(1,0)
-                    #    angle = rechtsvector.angle_to(diffvector)
-                        #self.eck.rotate(m)
-                    #    Flytext(PygView.width/2, PygView.height/2,  "angle = {}".format(angle), color=(255,0,0), duration = 3, fontsize=20)
-                    # ---- -simple movement for self.eck -------
+                    # ---- -simple movement for self.player1 -------
                     if event.key == pygame.K_RIGHT:
-                        self.eck.move += pygame.math.Vector2(10,0)
+                        self.player1.move += pygame.math.Vector2(10,0)
                     if event.key == pygame.K_LEFT:
-                        self.eck.move += pygame.math.Vector2(-10,0)
+                        self.player1.move += pygame.math.Vector2(-10,0)
                     if event.key == pygame.K_UP:
-                        self.eck.move += pygame.math.Vector2(0,10)
+                        self.player1.move += pygame.math.Vector2(0,10)
                     if event.key == pygame.K_DOWN:
-                        self.eck.move += pygame.math.Vector2(0,-10)
-                    # ---- stop movement for self.eck -----
+                        self.player1.move += pygame.math.Vector2(0,-10)
+                    # ---- stop movement for self.player1 -----
                     if event.key == pygame.K_r:
-                        self.eck.move *= 0.1 # remove 90% of movement
+                        self.player1.move *= 0.1 # remove 90% of movement
                     
    
             # delete everything on screen
             self.screen.blit(self.background, (0, 0))
             
-            # ------ move indicator for self.eck -----
-            #pygame.draw.circle(self.screen, (0,255,0), (100,100), 100,1)
-            #glitter = (0, random.randint(128, 255), 0)
-            #pygame.draw.line(self.screen, glitter, (100,100), 
-            #                (100 + self.eck.move.x, 100 - self.eck.move.y))
+            # ------ move indicator for self.player1 -----
             
             
             # --- line from eck to mouse ---
-            pygame.draw.line(self.screen, (self.rot,0,0), (self.eck.pos.x, -self.eck.pos.y), (self.mouse1.x, self.mouse1.y),int(self.dicke))
-            
-            self.dicke += self.dickedelta
-            if self.dicke > 20:
-                self.dicke = 20
-                self.dickedelta *= -1
-            if self.dicke < 1:
-                self.dicke = 1
-                self.dickedelta *= -1
-            
-            self.rot += self.rotdelta
-            if self.rot > 255:
-                self.rot = 255
-                self.rotdelta *= -1
-            if self.rot < 100:
-                self.rot = 100
-                self.rotdelta *= -1
             
             # ------------ pressed keys ------
             pressed_keys = pygame.key.get_pressed()
@@ -870,49 +883,27 @@ class PygView(object):
             # if pressed_keys[pygame.K_LSHIFT]:
                 # paint range circles for cannons
             if pressed_keys[pygame.K_a]:
-                self.eck.rotate(3)
+                self.player1.rotate(3)
             if pressed_keys[pygame.K_d]:
-                self.eck.rotate(-3)
+                self.player1.rotate(-3)
             if pressed_keys[pygame.K_w]:
-                v = pygame.math.Vector2(1,0)
-                v.rotate_ip(self.eck.angle)
-                self.eck.move += v
+                self.player1.move_forward()
             if pressed_keys[pygame.K_s]:
                 v = pygame.math.Vector2(1,0)
-                v.rotate_ip(self.eck.angle)
-                self.eck.move += -v
+                v.rotate_ip(self.player1.angle)
+                self.player1.move += -v
     
-            
             # ------ mouse handler ------
             left,middle,right = pygame.mouse.get_pressed()
-            #if oldleft and not left:
-            #    self.launchRocket(pygame.mouse.get_pos())
-            #if right:
-            #    self.launchRocket(pygame.mouse.get_pos())
+            if left:
+                self.player1.fire(angle = self.cannon1.angle)
+                #if oldleft and not left:
+            if right:
+                self.player1.move_forward()
+            
             oldleft, oldmiddle, oldright = left, middle, right
 
-            # ------ joystick handler -------
-            mouses = [self.mouse4, self.mouse5]
-            for number, j in enumerate(self.joysticks):
-                if number == 0:
-                   x = j.get_axis(0)
-                   y = j.get_axis(1)
-                   mouses[number].x += x * 20 # *2 
-                   mouses[number].y += y * 20 # *2 
-                   buttons = j.get_numbuttons()
-                   for b in range(buttons):
-                       pushed = j.get_button( b )
-                       #if b == 0 and pushed:
-                       #        self.launchRocket((mouses[number].x, mouses[number].y))
-                       #elif b == 1 and pushed:
-                       #    if not self.mouse4.pushed: 
-                       #        self.launchRocket((mouses[number].x, mouses[number].y))
-                       #        mouses[number] = True
-                       #elif b == 1 and not pushed:
-                       #    mouses[number] = False
-            pos1 = pygame.math.Vector2(pygame.mouse.get_pos())
-            pos2 = self.mouse2.rect.center
-            pos3 = self.mouse3.rect.center
+          
             
             # write text below sprites
             write(self.screen, "FPS: {:8.3}".format(
@@ -940,18 +931,15 @@ class PygView(object):
                              False, pygame.sprite.collide_circle)
                 for r in crashgroup:
                     elastic_collision(m, r)
-                    m.hitpoints -= r.damage
-                    Explosion(pos = r.pos, red = 200, dred = 20, minsparks = 100, maxsparks = 200, a1 = r.angle-180-40, a2 = r.angle-180+40, max_age = 0.25)
+                    # winkel zwischen monstermittelpunkt und rocket
+                    rightvector = pygame.math.Vector2(1,0)
+                    diffvector = r.pos - m.pos
+                    a = rightvector.angle_to(diffvector)
+                    Explosion(pos = r.pos, red = 200, dred = 20, minsparks = 100, maxsparks = 200, a1 = a-40, a2 = a+40, max_age = 0.25)
                     r.kill()
-            
             
             # ----------- clear, draw , update, flip -----------------
             self.allgroup.draw(self.screen)
-            
-            self.movement_indicator(self.eck,(105,105))
-            #self.movement_indicator(self.player2,(1320,105))
-            
-
             
             # --- Martins verbesserter Mousetail -----
             for mouse in self.mousegroup:
