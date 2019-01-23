@@ -498,7 +498,7 @@ class Player(VectorSprite):
             
        
     def move_forward(self):
-        v = pygame.math.Vector2(1,0)
+        v = pygame.math.Vector2(Game.playerspeed,0)
         v.rotate_ip(self.angle)
         self.move += v
         Flame(bossnumber=self.number, pos = self.pos)
@@ -677,6 +677,7 @@ class Rocket(VectorSprite):
         self.mass = 20
         self.damage = 10
         self.color = (255,156,0)
+        self.speed = Game.rocketspeed
 
 
 
@@ -714,8 +715,16 @@ class Rocket(VectorSprite):
 #        VectorSprite.kill(self)    
 
 
+class Game():
+    
+    menupoints = ["exit","hitpoints","speed","rockets","rocketspeed"]
+    rockets = 1
+    playerhitpoints = 100
+    playerspeed = 1
+    rocketspeed = 1
+    
 
-class PygView(object):
+class PygView():
     width = 0
     height = 0
     def movement_indicator(self,vehicle,pygamepos, color=(0,200,0)):
@@ -794,11 +803,12 @@ class PygView(object):
         self.playergroup = pygame.sprite.Group()
         self.rocketgroup = pygame.sprite.Group()
         self.lasergroup = pygame.sprite.Group()
+        self.flytextgroup = pygame.sprite.Group()
 
         Mouse.groups = self.allgroup, self.mousegroup
         EvilMonster.groups = self.allgroup, self.monstergroup
         VectorSprite.groups = self.allgroup
-        Flytext.groups = self.allgroup
+        Flytext.groups = self.allgroup, self.flytextgroup
         Player.groups = self.allgroup, self.playergroup
         Rocket.groups = self.allgroup, self.rocketgroup
         Spark.groups = self.allgroup
@@ -823,6 +833,63 @@ class PygView(object):
             EvilMonster(bounce_on_edge=True)
    
    
+    def menu(self):
+        running = True
+        cursor = 0
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+                # ------- pressed and released key ------
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        running = False
+                    if event.key == pygame.K_m:
+                        return
+                    if event.key == pygame.K_DOWN:
+                        cursor += 1
+                        cursor = min(len(Game.menupoints)-1, cursor)
+                    if event.key == pygame.K_UP:
+                        cursor -= 1
+                        cursor = max(0, cursor) 
+                        #running = False
+                    if event.key == pygame.K_RETURN:
+                        #Flytext(500, 500, text=Game.menupoints[cursor])
+                        text = Game.menupoints[cursor]
+                        if text == "exit":
+                            return
+                        elif text == "rockets":
+                            Game.rockets += 1
+                            t = "Rockets now: {}".format(Game.rockets)
+                            Flytext(500, 500, text=t)
+                        elif text == "hitpoints":
+                            Game.playerhitpoints += 1
+                            t = "Playerhitpoints now: {}".format(Game.playerhitpoints)
+                            Flytext(500, 500, text=t)
+                        elif text == "speed":
+                            Game.playerspeed += 1
+                            t = "Playerspeed now: {}".format(Game.playerspeed)
+                            Flytext(500, 500, text=t)
+                        elif text == "rocketspeed":
+                            Game.rocketspeed += 1
+                            t = "Rocketspeed now: {}".format(Game.rocketspeed)
+                            Flytext(500, 500, text=t)
+                            
+                        
+            
+            # ----- celar all ----
+            self.screen.blit(self.background, (0, 0))
+            seconds = self.clock.tick(self.fps) / 1000
+            self.flytextgroup.update(seconds)
+            self.flytextgroup.draw(self.screen)
+            # draw menu
+            for a, line in enumerate(Game.menupoints):
+                write(self.screen, line, x=200, y= 100+a*25)
+            c = random.randint(64, 128)   #, random.randint(0,255), random.randint(0,255))
+            write(self.screen, "--->", x = 120, y = 100+cursor * 25, color = (c,c,c))
+            pygame.display.flip()
+        # --- menu fertig -----
+   
     def run(self):
         """The mainloop"""
         running = True
@@ -835,10 +902,19 @@ class PygView(object):
         self.dickedelta = 0.4
         self.rot = 255
         self.rotdelta = 5
+        self.menutime = False
+        self.menudeltatime = 0
         while running:
             milliseconds = self.clock.tick(self.fps) #
-            seconds = milliseconds / 1000
+            if self.menutime:
+                self.menudeltatime += milliseconds / 1000
+                self.menutime = False
+                seconds = milliseconds / 1000 - self.menudeltatime
+                self.menudeltatime = 0
+            else:
+                seconds = milliseconds / 1000
             self.playtime += seconds
+            
             if gameOver:
                 if self.playtime > exittime:
                     break
@@ -854,6 +930,9 @@ class PygView(object):
                         running = False
                     if event.key == pygame.K_TAB:
                         self.player1.fire(self.cannon1.angle)
+                    if event.key == pygame.K_m:
+                        self.menutime = True
+                        self.menu()
                     if event.key == pygame.K_e:
                         ep = pygame.math.Vector2(self.player1.pos.x, self.player1.pos.y)
                         Explosion(pos = ep, red = 100, dred = 20, minsparks = 200, maxsparks = 300)
