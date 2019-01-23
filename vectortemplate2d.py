@@ -357,10 +357,10 @@ class VectorSprite(pygame.sprite.Sprite):
             self.kill()
         # ---- movement with/without boss ----
         if self.bossnumber is not None:
-            if self.kill_with_boss:
-                if self.bossnumber not in VectorSprite.numbers:
+            if self.bossnumber not in VectorSprite.numbers:
+                if self.kill_with_boss:
                     self.kill()
-            if self.sticky_with_boss:
+            elif self.sticky_with_boss:
                 #print("i am sticky", self.number, self.bossnumber)
                 boss = VectorSprite.numbers[self.bossnumber]
                 #self.pos = v.Vec2d(boss.pos.x, boss.pos.y)
@@ -592,6 +592,9 @@ class EvilMonster(VectorSprite):
             
     def fire(self):
         # wir wissen, player1 hat number 0
+        # gibts ihn noch?
+        if 0 not in VectorSprite.numbers:
+            return 
         p1 = VectorSprite.numbers[0]
         rightvector = pygame.math.Vector2(1,0)
         diffvector = p1.pos - self.pos
@@ -931,12 +934,28 @@ class PygView(object):
                              False, pygame.sprite.collide_circle)
                 for r in crashgroup:
                     elastic_collision(m, r)
+                    m.hitpoints -= r.damage
                     # winkel zwischen monstermittelpunkt und rocket
                     rightvector = pygame.math.Vector2(1,0)
                     diffvector = r.pos - m.pos
                     a = rightvector.angle_to(diffvector)
                     Explosion(pos = r.pos, red = 200, dred = 20, minsparks = 100, maxsparks = 200, a1 = a-40, a2 = a+40, max_age = 0.25)
                     r.kill()
+                    
+            # --------- collision detection between player and laser -----
+            for p in self.playergroup:
+                crashgroup = pygame.sprite.spritecollide(p, self.lasergroup,
+                             False, pygame.sprite.collide_mask)
+                
+                for l in crashgroup:
+                    #elastic_collision(p,l)
+                    p.hitpoints -= l.damage 
+                    rightvector = pygame.math.Vector2(1,0)
+                    diffvector = l.pos - p.pos
+                    a = rightvector.angle_to(diffvector)
+                    Explosion(pos = l.pos, red = 0, dred = 0, blue = 0, dblue = 0, green = 200, dgreen = 20, minsparks = 100, maxsparks = 200, a1 = a-40, a2 = a+40, max_age = 0.25)
+                    l.kill()
+            
             
             # ----------- clear, draw , update, flip -----------------
             self.allgroup.draw(self.screen)
