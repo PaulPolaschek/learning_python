@@ -487,15 +487,19 @@ class Player(VectorSprite):
         #print(sebossnumber)
        
     def fire(self, angle):
-        v = pygame.math.Vector2(100,0)
-        v.rotate_ip(angle)
-        v += self.move
         p = pygame.math.Vector2(self.pos.x, self.pos.y)
         a = angle
         t = pygame.math.Vector2(25, 0)
         t.rotate_ip(angle)
-        Rocket(pos=p+t, move=v, angle=a)
-            
+        total =  Game.shooting_angle * 2
+        a1 = total / (Game.rockets + 1)
+        b = a - Game.shooting_angle
+        for i in range(Game.rockets):
+                b += a1
+                v = pygame.math.Vector2(100,0)
+                v.rotate_ip(b)
+                v += self.move
+                Rocket(pos=p+t, move = v, angle = b, max_distance = Game.rocket_range)
        
     def move_forward(self):
         v = pygame.math.Vector2(Game.playerspeed,0)
@@ -504,7 +508,7 @@ class Player(VectorSprite):
         Flame(bossnumber=self.number, pos = self.pos)
         if random.random() < 0.2:
             Smoke(pos = self.pos, gravity = None, max_age=3.0)
-            
+            5
         
     
     def create_image(self):
@@ -605,6 +609,7 @@ class EvilMonster(VectorSprite):
         
     def kill(self):
         Explosion(pos = self.pos, red = 255, dred = 20, green = 255, dgreen = 20, blue = 0, a1 = 0, a2 = 360)
+        Game.gold += 1
         VectorSprite.kill(self)
        
 class Flame(VectorSprite):
@@ -717,11 +722,15 @@ class Rocket(VectorSprite):
 
 class Game():
     
-    menupoints = ["exit","hitpoints","speed","rockets","rocketspeed"]
+    menupoints = ["exit","hitpoints","speed","rockets","rocketspeed","increase shootingangle","decrease shootingangle"]
     rockets = 1
     playerhitpoints = 100
     playerspeed = 1
     rocketspeed = 1
+    shooting_angle = 20
+    gold = 0
+    price = 10
+    rocket_range = 200
     
 
 class PygView():
@@ -832,6 +841,18 @@ class PygView():
         for x in range(20):
             EvilMonster(bounce_on_edge=True)
    
+    def calculate_price(self, cursor):
+        text = Game.menupoints[cursor]
+        if text == "exit":
+            Game.price = 0
+        elif text == "rockets":
+            Game.price = 1
+        elif text == "hitpoints":
+            Game.price = 15
+        elif text == "speed":
+            Game.price = 5
+        elif text == "rocketspeed":
+            Game.price = 5
    
     def menu(self):
         running = True
@@ -849,9 +870,11 @@ class PygView():
                     if event.key == pygame.K_DOWN:
                         cursor += 1
                         cursor = min(len(Game.menupoints)-1, cursor)
+                        self.calculate_price(cursor)
                     if event.key == pygame.K_UP:
                         cursor -= 1
-                        cursor = max(0, cursor) 
+                        cursor = max(0, cursor)
+                        self.calculate_price(cursor) 
                         #running = False
                     if event.key == pygame.K_RETURN:
                         #Flytext(500, 500, text=Game.menupoints[cursor])
@@ -859,6 +882,10 @@ class PygView():
                         if text == "exit":
                             return
                         elif text == "rockets":
+                            if Game.gold < Game.price:
+                                Flytext(500, 500, text = "you need 10 gold")
+                                break
+                            Game.gold -= Game.price
                             Game.rockets += 1
                             t = "Rockets now: {}".format(Game.rockets)
                             Flytext(500, 500, text=t)
@@ -874,6 +901,20 @@ class PygView():
                             Game.rocketspeed += 1
                             t = "Rocketspeed now: {}".format(Game.rocketspeed)
                             Flytext(500, 500, text=t)
+                        elif text == "increase shootingangle":
+                            if Game.shooting_angle >= 180:
+                                Game.shooting_angle = 180
+                            else:
+                                Game.shooting_angle += 5
+                                t = "shootingangle now: {}".format(Game.shooting_angle)
+                                Flytext(500, 500, text = t)
+                        elif text == "decrease shootingangle":
+                            if Game.shooting_angle <= 0:
+                                Game.shooting_angle = 0
+                            else:
+                                Game.shooting_angle -= 5
+                                t = "shootingangle now: {}".format(Game.shooting_angle)
+                                Flytext(500, 500, text = t)
                             
                         
             
@@ -882,6 +923,36 @@ class PygView():
             seconds = self.clock.tick(self.fps) / 1000
             self.flytextgroup.update(seconds)
             self.flytextgroup.draw(self.screen)
+            # draw status
+            write(self.screen, "gold: {} price: {} rockets: {} shootingangle: {} playerspeed: {} FPS: {:8.3}".format(
+            Game.gold, Game.price, Game.rockets, Game.shooting_angle, Game.playerspeed, self.clock.get_fps() ), x=10, y=10)
+            
+            #---- draw shootingangle
+            
+            # ellipse arc angle in Radiants
+            start = (90 - Game.shooting_angle) * math.pi / 180
+            end =   (90 + Game.shooting_angle) * math.pi / 180
+            #print(start, end)
+            # shema of ship
+            pygame.draw.polygon(self.screen, (0,0,255), 
+                     [(700, 300), (600, 600),(700, 550), (800, 600)], 3)
+            # bogerl
+            pygame.draw.arc(self.screen, ( 200,200,200), (600,200,200, 200), start, end, 2) 
+            # radien
+            middlevec = pygame.math.Vector2( 700, -300)
+            w = pygame.math.Vector2(120, 0)
+            w.rotate_ip(90 +Game.shooting_angle)
+            v = middlevec + w
+            pygame.draw.line(self.screen, ( 200,200, 200), (700,300), (v.x, -v.y))
+            w = pygame.math.Vector2(120, 0)
+            w.rotate_ip(90- Game.shooting_angle)
+            v = middlevec + w
+            pygame.draw.line(self.screen, ( 200,200, 200), (700,300), (v.x, -v.y))
+            
+            
+            self.allgroup.update(seconds)
+            
+
             # draw menu
             for a, line in enumerate(Game.menupoints):
                 write(self.screen, line, x=200, y= 100+a*25)
@@ -948,6 +1019,9 @@ class PygView():
                     # ---- stop movement for self.player1 -----
                     if event.key == pygame.K_r:
                         self.player1.move *= 0.1 # remove 90% of movement
+                    if event.key == pygame.K_b:
+                        Game.playerspeed = 1
+                        self.player1.move = pygame.math.Vector2(0,0)
                     
    
             # delete everything on screen
@@ -988,8 +1062,8 @@ class PygView():
           
             
             # write text below sprites
-            write(self.screen, "FPS: {:8.3}".format(
-                self.clock.get_fps() ), x=10, y=10)
+            write(self.screen, "FPS: {:8.3}  rockets: {} gold: {}".format(
+                self.clock.get_fps(), Game.rockets, Game.gold ), x=10, y=10)
             self.allgroup.update(seconds)
 
             # --------- collision detection between player and monster -----
